@@ -3,8 +3,6 @@
 ########################################
 import os
 import ctypes
-import subprocess
-import sys
 import threading
 import pathlib
 import socketserver
@@ -137,7 +135,6 @@ def write_file(tangs):
             raise ctypes.WinError()
 
 ########################################
-# rs
 ########################################
 
 class MyHTTPHandler(http.server.SimpleHTTPRequestHandler):
