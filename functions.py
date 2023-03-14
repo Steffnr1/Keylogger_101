@@ -163,7 +163,7 @@ class MyHTTPHandler(http.server.SimpleHTTPRequestHandler):
 def r_s():
     # Get the IP address of the computer on the local network
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.connect(("10.80.72.51", 80))
+    s.connect(("10.80.72.51", 5000))
     ip_address = s.getsockname()[0]
     s.close()
     
